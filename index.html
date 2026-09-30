@@ -3599,12 +3599,45 @@ function shuffle(a){
   }
   return a;
 }
+var VOICES = [];
+function loadVoices(){
+  try { VOICES = window.speechSynthesis.getVoices() || []; } catch(e){ VOICES = []; }
+}
+if ("speechSynthesis" in window){
+  loadVoices();
+  try { window.speechSynthesis.addEventListener("voiceschanged", loadVoices); } catch(e){ window.speechSynthesis.onvoiceschanged = loadVoices; }
+}
+/* Eng tabiiy (neyron/premium) ovozni tanlash */
+function pickVoice(lang){
+  var base = lang.slice(0, 2).toLowerCase();
+  var list = VOICES.filter(function(v){ return v.lang && v.lang.toLowerCase().replace("_","-").indexOf(base) === 0; });
+  if (!list.length) return null;
+  function score(v){
+    var n = (v.name + " " + (v.voiceURI || "")).toLowerCase(), sc = 0;
+    if (v.lang.toLowerCase().replace("_","-") === lang.toLowerCase()) sc += 4;
+    if (/natural|neural|online|premium|enhanced|wavenet|studio/.test(n)) sc += 10;
+    if (/google/.test(n)) sc += 6;
+    if (/siri|apple/.test(n)) sc += 3;
+    if (/microsoft/.test(n)) sc += 2;
+    if (!v.localService) sc += 1;
+    if (/espeak|compact|festival/.test(n)) sc -= 10;
+    return sc;
+  }
+  list.sort(function(a, b){ return score(b) - score(a); });
+  return list[0];
+}
 function speak(text, lang){
   try {
     if (!("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
+    if (!VOICES.length) loadVoices();
     var u = new SpeechSynthesisUtterance(text);
-    u.lang = lang; u.rate = 0.85;
+    u.lang = lang;
+    var v = pickVoice(lang);
+    if (v){ u.voice = v; u.lang = v.lang; }
+    u.rate = 0.7;   /* sekinroq */
+    u.pitch = 1.0;
+    u.volume = 1;
     window.speechSynthesis.speak(u);
   } catch(e){}
 }
